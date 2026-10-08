@@ -1,0 +1,158 @@
+# Continuous integration. Every job must pass before merging (see docs/development/ci.md).
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  # Placeholder values for CI only. They protect nothing and are never used outside CI.
+  PROXY_SHARED_SECRET: ci-only-proxy-secret-0123456789abcdef
+  API_ORIGIN: http://localhost:8000
+  APP_ENV: test
+
+jobs:
+  backend:
+    name: Backend · lint, types, tests, schema
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: backend
+    services:
+      postgres:
+        image: postgres:17.11-alpine
+        env:
+          POSTGRES_DB: kayaka
+          POSTGRES_USER: kayaka
+          POSTGRES_PASSWORD: kayaka
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U kayaka -d kayaka"
+          --health-interval 2s --health-timeout 3s --health-retries 30
+    env:
+      DATABASE_URL: postgres://kayaka:kayaka@localhost:5432/kayaka
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7 # v10.2.0
+        with:
+          version: "0.12.21"
+          python-version: "3.14.7"
+          enable-cache: true
+          cache-dependency-glob: backend/uv.lock
+      - name: Install dependencies
+        run: uv sync --locked
+      - name: Ruff lint
+        run: uv run --locked ruff check --output-format github .
+      - name: Ruff format
+        run: uv run --locked ruff format --check .
+      - name: Module boundaries (import-linter)
+        run: uv run --locked lint-imports
+      - name: Type check (mypy)
+        run: uv run --locked mypy .
+      - name: Migrations are up to date
+        run: uv run --locked python manage.py makemigrations --check --dry-run --settings config.settings.test
+      - name: Production deploy checks
+        env:
+          APP_ENV: production
+          DJANGO_SECRET_KEY: ci-only-not-a-real-secret-key-0123456789abcdefghijklmnopqrstuvwxyz
+          DJANGO_ALLOWED_HOSTS: api.example.com
+          CSRF_TRUSTED_ORIGINS: https://app.example.com
+        run: uv run --locked python manage.py check --deploy --fail-level WARNING --settings config.settings.prod
+      - name: Tests
+        run: uv run --locked pytest
+      - name: OpenAPI schema is up to date
+        run: |
+          uv run --locked python manage.py spectacular --settings config.settings.test \
+            --format openapi-json --validate --fail-on-warn --file openapi/schema.json
+          git diff --exit-code -- openapi/schema.json \
+            || (echo "::error::openapi/schema.json is stale. Regenerate it (see docs/development/local-setup.md)." && exit 1)
+
+  frontend:
+    name: Frontend · lint, types, tests, build
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version-file: frontend/.nvmrc
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - run: npm ci
+      - name: ESLint
+        run: npm run lint
+      - name: Prettier
+        run: npm run format:check
+      - name: Type check
+        run: npm run typecheck
+      - name: Generated API types are up to date
+        run: |
+          npm run api:generate
+          git diff --exit-code -- src/lib/api/schema.d.ts \
+            || (echo "::error::src/lib/api/schema.d.ts is stale. Run: npm run api:generate" && exit 1)
+      - name: Unit tests
+        run: npm test
+      - name: Build
+        run: npm run build
+
+  e2e:
+    name: E2E · Playwright smoke tests
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    needs: [backend, frontend]
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Start backend stack (db, mailpit, backend)
+        run: docker compose up --build --detach --wait
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version-file: frontend/.nvmrc
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - name: Install dependencies and browser
+        working-directory: frontend
+        run: |
+          npm ci
+          npx playwright install --with-deps chromium
+      - name: Build frontend
+        working-directory: frontend
+        run: npm run build
+      - name: Playwright
+        working-directory: frontend
+        env:
+          CI: "true"
+        run: npm run test:e2e
+      - name: Backend logs on failure
+        if: failure()
+        run: docker compose logs backend
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        if: failure()
+        with:
+          name: playwright-report
+          path: frontend/playwright-report
+          retention-days: 7
+
+  secrets:
+    name: Secret scanning (gitleaks)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+      - name: Scan full git history
+        run: |
+          docker run --rm --user "$(id -u):$(id -g)" -v "$PWD:/repo" \
+            zricethezav/gitleaks:v8.30.1 git /repo --redact --no-banner --verbose

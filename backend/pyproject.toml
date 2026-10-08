@@ -1,0 +1,106 @@
+[project]
+name = "kayaka-backend"
+version = "0.1.0"
+description = "Kayaka API — Django modular monolith"
+requires-python = ">=3.14,<3.15"
+# Every runtime dependency is pinned exactly. Reasons are in docs/adr/0009-phase-1-toolchain.md.
+dependencies = [
+    "django==5.2.17",               # web framework (LTS)
+    "djangorestframework==3.16.1",  # REST API layer
+    "drf-spectacular==0.30.0",      # OpenAPI schema -> typed frontend client
+    "django-environ==0.14.0",       # env-based settings, DATABASE_URL / EMAIL_URL parsing
+    "psycopg[binary]==3.3.6",       # PostgreSQL driver
+    "python-json-logger==4.2.0",    # structured JSON logs
+    "argon2-cffi==25.1.0",          # Argon2 password hashing
+    "gunicorn==26.2.0",             # production WSGI server
+]
+
+[dependency-groups]
+dev = [
+    "pytest==9.1.1",
+    "pytest-django==4.14.0",
+    "ruff==0.16.9",
+    "mypy==1.19.1",
+    "django-stubs==5.2.9",
+    "djangorestframework-stubs==3.16.9",
+    "import-linter==2.15",
+]
+
+[tool.uv]
+package = false
+
+# ---------------------------------------------------------------- ruff
+[tool.ruff]
+target-version = "py314"
+line-length = 100
+extend-exclude = ["**/migrations/*.py"]
+
+[tool.ruff.lint]
+select = [
+    "E", "W", "F",   # pycodestyle, pyflakes
+    "I",             # isort
+    "B",             # bugbear
+    "UP",            # pyupgrade
+    "DJ",            # django
+    "S",             # bandit (security)
+    "SIM",           # simplify
+    "DTZ",           # timezone-aware datetimes
+    "T20",           # no print()
+    "PT",            # pytest style
+    "RUF",
+]
+
+[tool.ruff.lint.per-file-ignores]
+"**/tests/**" = ["S101", "S105", "S106"]
+"config/settings/*.py" = ["S105"]
+
+# ---------------------------------------------------------------- mypy
+[tool.mypy]
+python_version = "3.14"
+plugins = ["mypy_django_plugin.main", "mypy_drf_plugin.main"]
+strict = true
+disallow_subclassing_any = false   # Django/DRF base classes are partially typed
+warn_unreachable = true
+exclude = ["/migrations/"]
+
+[[tool.mypy.overrides]]
+module = ["environ.*", "pythonjsonlogger.*"]
+ignore_missing_imports = true
+
+# Tests are still type-checked, but don't need annotations everywhere.
+[[tool.mypy.overrides]]
+module = ["*.tests.*", "conftest"]
+disallow_untyped_defs = false
+disallow_incomplete_defs = false
+disallow_untyped_calls = false
+
+[tool.django-stubs]
+django_settings_module = "config.settings.test"
+
+# ---------------------------------------------------------------- pytest
+[tool.pytest.ini_options]
+# --ds wins over a DJANGO_SETTINGS_MODULE env var (compose sets the dev module), so tests
+# always run with config.settings.test.
+addopts = "-ra --strict-markers --strict-config --ds=config.settings.test"
+testpaths = ["kayaka"]
+python_files = ["test_*.py"]
+filterwarnings = ["error"]
+
+# ---------------------------------------------------------------- import-linter
+# Module boundary rules (ADR 0001). Extend these as new modules are added.
+[tool.importlinter]
+root_packages = ["kayaka", "config"]
+
+[[tool.importlinter.contracts]]
+name = "core is the lowest layer"
+type = "layers"
+layers = [
+    "kayaka.accounts",
+    "kayaka.core",
+]
+
+[[tool.importlinter.contracts]]
+name = "Kayaka modules do not import project config (use django.conf.settings)"
+type = "forbidden"
+source_modules = ["kayaka"]
+forbidden_modules = ["config"]

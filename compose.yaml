@@ -1,0 +1,63 @@
+# Local development stack. Usage: `docker compose up` (see docs/development/local-setup.md).
+# Every credential here is a development-only placeholder. Ports bind to 127.0.0.1 only.
+name: kayaka
+
+services:
+  db:
+    image: postgres:17.11-alpine
+    environment:
+      POSTGRES_DB: kayaka
+      POSTGRES_USER: kayaka
+      POSTGRES_PASSWORD: kayaka
+    ports:
+      - "127.0.0.1:${POSTGRES_PORT:-5432}:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U kayaka -d kayaka"]
+      interval: 2s
+      timeout: 3s
+      retries: 30
+
+  mailpit:
+    image: axllent/mailpit:v1.31.3
+    ports:
+      - "127.0.0.1:${MAILPIT_UI_PORT:-8025}:8025"
+      - "127.0.0.1:${MAILPIT_SMTP_PORT:-1025}:1025"
+
+  backend:
+    build:
+      context: ./backend
+      target: dev
+    command: >-
+      sh -c "python manage.py migrate --noinput &&
+             python manage.py runserver 0.0.0.0:8000"
+    environment:
+      DJANGO_SETTINGS_MODULE: config.settings.dev
+      DATABASE_URL: postgres://kayaka:kayaka@db:5432/kayaka
+      EMAIL_URL: smtp://mailpit:1025
+      DJANGO_ADMIN_ENABLED: "true"
+      PROXY_SHARED_SECRET: ${PROXY_SHARED_SECRET:-dev-only-proxy-secret-0123456789abcdef}
+      LOG_FORMAT: ${LOG_FORMAT:-console}
+    ports:
+      - "127.0.0.1:${BACKEND_PORT:-8000}:8000"
+    volumes:
+      - ./backend:/app
+    depends_on:
+      db:
+        condition: service_healthy
+      mailpit:
+        condition: service_started
+    healthcheck:
+      test:
+        - CMD
+        - python
+        - -c
+        - "import sys,urllib.request; sys.exit(urllib.request.urlopen('http://localhost:8000/readyz').status != 200)"
+      interval: 5s
+      timeout: 3s
+      retries: 20
+      start_period: 10s
+
+volumes:
+  pgdata:

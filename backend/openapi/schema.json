@@ -1,0 +1,143 @@
+{
+    "openapi": "3.0.3",
+    "info": {
+        "title": "Kayaka API",
+        "version": "1.0.0",
+        "description": "Multi-tenant commerce platform API. See docs/development/api-conventions.md."
+    },
+    "paths": {
+        "/api/v1/public/ping": {
+            "get": {
+                "operationId": "public_ping",
+                "description": "Public liveness check for the API surface. Used by the frontend walking skeleton.",
+                "summary": "Ping the public API",
+                "tags": [
+                    "public"
+                ],
+                "security": [
+                    {}
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/PingResponse"
+                                }
+                            }
+                        },
+                        "description": ""
+                    },
+                    "4XX": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ErrorResponse"
+                                }
+                            }
+                        },
+                        "description": ""
+                    }
+                }
+            }
+        }
+    },
+    "components": {
+        "schemas": {
+            "ErrorBody": {
+                "type": "object",
+                "properties": {
+                    "code": {
+                        "type": "string",
+                        "description": "Stable machine-readable code, e.g. VALIDATION_ERROR"
+                    },
+                    "message": {
+                        "type": "string",
+                        "description": "Human-readable message, safe to show to users"
+                    },
+                    "details": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/ErrorDetail"
+                        }
+                    },
+                    "requestId": {
+                        "type": "string",
+                        "nullable": true
+                    }
+                },
+                "required": [
+                    "code",
+                    "message",
+                    "requestId"
+                ]
+            },
+            "ErrorDetail": {
+                "type": "object",
+                "properties": {
+                    "field": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "code": {
+                        "type": "string"
+                    },
+                    "message": {
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "code",
+                    "field",
+                    "message"
+                ]
+            },
+            "ErrorResponse": {
+                "type": "object",
+                "properties": {
+                    "error": {
+                        "$ref": "#/components/schemas/ErrorBody"
+                    }
+                },
+                "required": [
+                    "error"
+                ]
+            },
+            "Ping": {
+                "type": "object",
+                "properties": {
+                    "service": {
+                        "type": "string"
+                    },
+                    "version": {
+                        "type": "string"
+                    },
+                    "environment": {
+                        "type": "string"
+                    },
+                    "time": {
+                        "type": "string",
+                        "format": "date-time"
+                    }
+                },
+                "required": [
+                    "environment",
+                    "service",
+                    "time",
+                    "version"
+                ]
+            },
+            "PingResponse": {
+                "type": "object",
+                "properties": {
+                    "data": {
+                        "$ref": "#/components/schemas/Ping"
+                    }
+                },
+                "required": [
+                    "data"
+                ]
+            }
+        }
+    }
+}

@@ -1,0 +1,73 @@
+# Manual staging deploy of the backend to Google Cloud Run.
+#
+# STATUS: prepared, NOT yet run. It needs the one-time GCP setup in
+# docs/development/deployment-staging.md (project, Artifact Registry, Workload Identity
+# Federation, Secret Manager secrets, Neon staging database). The frontend deploys through
+# Vercel's Git integration, not through this workflow.
+name: Deploy backend (staging)
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  id-token: write # Workload Identity Federation: no long-lived JSON keys
+
+concurrency:
+  group: deploy-staging
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    environment: staging
+    env:
+      REGION: ${{ vars.GCP_REGION }} # asia-southeast1 (next to Neon Singapore)
+      IMAGE: ${{ vars.GCP_REGION }}-docker.pkg.dev/${{ vars.GCP_PROJECT_ID }}/kayaka/backend:${{ github.sha }}
+      SERVICE: kayaka-api-staging
+      MIGRATE_JOB: kayaka-migrate-staging
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - uses: google-github-actions/auth@7c6bc770dae815cd3e89ee6cdf493a5fab2cc093 # v3.0.0
+        with:
+          workload_identity_provider: ${{ vars.GCP_WIF_PROVIDER }}
+          service_account: ${{ vars.GCP_DEPLOY_SERVICE_ACCOUNT }}
+
+      - uses: google-github-actions/setup-gcloud@aa5489c8933f4cc7a4f7d45035b3b1440c9c10db # v3.0.1
+
+      - name: Build and push image
+        run: |
+          gcloud auth configure-docker "${REGION}-docker.pkg.dev" --quiet
+          docker build --target prod --tag "$IMAGE" backend
+          docker push "$IMAGE"
+
+      # Secrets live in Secret Manager; only references are passed here.
+      - name: Run migrations (Cloud Run Job)
+        run: |
+          gcloud run jobs deploy "$MIGRATE_JOB" \
+            --image "$IMAGE" --region "$REGION" \
+            --service-account "${{ vars.GCP_RUNTIME_SERVICE_ACCOUNT }}" \
+            --command python --args manage.py,migrate,--noinput \
+            --set-env-vars "APP_ENV=staging,APP_VERSION=${{ github.sha }},DJANGO_ALLOWED_HOSTS=${{ vars.API_HOST }},CSRF_TRUSTED_ORIGINS=${{ vars.FRONTEND_ORIGIN }}" \
+            --set-secrets "DATABASE_URL=kayaka-staging-database-url:latest,DJANGO_SECRET_KEY=kayaka-staging-django-secret-key:latest,PROXY_SHARED_SECRET=kayaka-staging-proxy-secret:latest" \
+            --max-retries 0 --task-timeout 300s \
+            --execute-now --wait
+
+      - name: Deploy API service
+        run: |
+          gcloud run deploy "$SERVICE" \
+            --image "$IMAGE" --region "$REGION" \
+            --service-account "${{ vars.GCP_RUNTIME_SERVICE_ACCOUNT }}" \
+            --allow-unauthenticated \
+            --min-instances 0 --max-instances 2 --concurrency 40 \
+            --cpu 1 --memory 512Mi --timeout 30s \
+            --set-env-vars "APP_ENV=staging,APP_VERSION=${{ github.sha }},DJANGO_ALLOWED_HOSTS=${{ vars.API_HOST }},CSRF_TRUSTED_ORIGINS=${{ vars.FRONTEND_ORIGIN }},LOG_FORMAT=json" \
+            --set-secrets "DATABASE_URL=kayaka-staging-database-url:latest,DJANGO_SECRET_KEY=kayaka-staging-django-secret-key:latest,PROXY_SHARED_SECRET=kayaka-staging-proxy-secret:latest"
+
+      - name: Smoke test
+        run: |
+          url="$(gcloud run services describe "$SERVICE" --region "$REGION" --format 'value(status.url)')"
+          curl --fail --silent --show-error --retry 5 --retry-delay 3 "$url/readyz"
+          curl --fail --silent --show-error "$url/api/v1/public/ping"
