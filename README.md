@@ -38,5 +38,7 @@ compose.yaml local development stack
 - [Architecture overview](docs/architecture/overview.md) — what exists today
 - [Architecture decisions (ADRs)](docs/adr/README.md)
 - [API conventions](docs/development/api-conventions.md)
+- [Demo accounts & personas](docs/development/demo-accounts.md) — local dev personas and the
+  intended Phase 2 role model
 - [Testing](docs/development/testing.md) · [CI](docs/development/ci.md) ·
   [Staging deployment](docs/development/deployment-staging.md)

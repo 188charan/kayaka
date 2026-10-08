@@ -1,6 +1,10 @@
 import type { Metadata } from "next";
 
-import { Skeleton } from "@/components/ui/skeleton";
+import { ArrowRightIcon, SparkleIcon, WhatsAppIcon } from "@/components/shared/icons";
+import { ProductCard } from "@/components/shared/product-card";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { DEMO_PRODUCTS, DEMO_STORE } from "@/lib/demo-data";
 import { storeNameFromSlug } from "@/lib/store-slug";
 
 // The layout has already rejected invalid slugs with a 404.
@@ -17,28 +21,78 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 
 export default async function StoreHomePage({ params }: Props) {
   const { storeSlug } = await params;
+  const storeName = storeNameFromSlug(storeSlug);
+  const featured = DEMO_PRODUCTS.slice(0, 3);
 
   return (
-    <section aria-labelledby="store-heading" className="space-y-6">
-      <div className="space-y-1">
-        <h1 id="store-heading" className="text-2xl font-semibold">
-          {storeNameFromSlug(storeSlug)}
-        </h1>
-        <p className="text-muted-foreground">
-          This storefront is a placeholder. Products and customization arrive in later phases.
-        </p>
-      </div>
+    <div className="space-y-10">
+      {/* Hero */}
+      <section
+        aria-labelledby="store-heading"
+        className="relative overflow-hidden rounded-2xl border bg-gradient-to-br from-accent/60 via-background to-background p-6 md:p-10"
+      >
+        <div className="max-w-xl space-y-4">
+          <Badge variant="brand">
+            <SparkleIcon className="size-3" />
+            New collection
+          </Badge>
+          <h1 id="store-heading" className="text-3xl font-semibold tracking-tight md:text-4xl">
+            {storeName}
+          </h1>
+          <p className="text-muted-foreground">{DEMO_STORE.tagline}</p>
+          <div className="flex flex-col gap-3 sm:flex-row">
+            <Button size="lg">Shop the collection</Button>
+            <Button
+              size="lg"
+              variant="outline"
+              className="gap-2 border-success/40 text-success hover:bg-success/10"
+            >
+              <WhatsAppIcon className="size-5" />
+              Inquire on WhatsApp
+            </Button>
+          </div>
+        </div>
+      </section>
 
-      {/* Mobile-first grid: 2 columns on phones, up to 4 on desktop. */}
-      <ul className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4" aria-label="Products">
-        {Array.from({ length: 8 }, (_, index) => (
-          <li key={index} className="space-y-2">
-            <Skeleton className="aspect-[4/5] w-full" />
-            <Skeleton className="h-4 w-3/4" />
-            <Skeleton className="h-4 w-1/3" />
-          </li>
-        ))}
-      </ul>
-    </section>
+      {/* Featured */}
+      <section aria-labelledby="featured-heading" className="space-y-4">
+        <div className="flex items-end justify-between gap-2">
+          <div>
+            <h2 id="featured-heading" className="text-xl font-semibold tracking-tight">
+              Featured
+            </h2>
+            <p className="text-sm text-muted-foreground">Handpicked pieces from the studio</p>
+          </div>
+          <span className="flex items-center gap-1 text-sm text-muted-foreground">
+            View all
+            <ArrowRightIcon className="size-4" />
+          </span>
+        </div>
+        <ul className="grid grid-cols-2 gap-4 lg:grid-cols-3" aria-label="Featured products">
+          {featured.map((product) => (
+            <li key={product.id}>
+              <ProductCard product={product} />
+            </li>
+          ))}
+        </ul>
+      </section>
+
+      {/* All products */}
+      <section aria-labelledby="all-heading" className="space-y-4">
+        <h2 id="all-heading" className="text-xl font-semibold tracking-tight">
+          All products
+        </h2>
+        <ul
+          className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4"
+          aria-label="All products"
+        >
+          {DEMO_PRODUCTS.map((product) => (
+            <li key={product.id}>
+              <ProductCard product={product} />
+            </li>
+          ))}
+        </ul>
+      </section>
+    </div>
   );
 }
