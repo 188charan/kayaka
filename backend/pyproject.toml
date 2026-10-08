@@ -6,7 +6,7 @@ requires-python = ">=3.14,<3.15"
 # Every runtime dependency is pinned exactly. Reasons are in docs/adr/0009-phase-1-toolchain.md.
 dependencies = [
     "django==5.2.17",               # web framework (LTS)
-    "djangorestframework==3.16.1",  # REST API layer
+    "djangorestframework==3.18.1",  # REST API layer
     "drf-spectacular==0.30.0",      # OpenAPI schema -> typed frontend client
     "django-environ==0.14.0",       # env-based settings, DATABASE_URL / EMAIL_URL parsing
     "psycopg[binary]==3.3.6",       # PostgreSQL driver
@@ -19,7 +19,7 @@ dependencies = [
 dev = [
     "pytest==9.1.1",
     "pytest-django==4.14.0",
-    "ruff==0.16.9",
+    "ruff==0.16.10",
     "mypy==1.19.1",
     "django-stubs==5.2.9",
     "djangorestframework-stubs==3.16.9",
