@@ -17,5 +17,7 @@ export function proxy(request: NextRequest) {
 }
 
 export const config = {
-  matcher: "/api/v1/:path*",
+  // Both the API and the django-allauth headless browser endpoints are forwarded to Django so
+  // the browser only ever talks to this origin (ADR 0003, ADR 0011).
+  matcher: ["/api/v1/:path*", "/_allauth/:path*"],
 };

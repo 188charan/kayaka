@@ -12,6 +12,7 @@ dependencies = [
     "psycopg[binary]==3.3.6",       # PostgreSQL driver
     "python-json-logger==4.2.0",    # structured JSON logs
     "argon2-cffi==25.1.0",          # Argon2 password hashing
+    "django-allauth==65.19.4",      # authentication (headless, session-based) — Phase 2
     "gunicorn==26.2.0",             # production WSGI server
 ]
 
@@ -64,7 +65,7 @@ warn_unreachable = true
 exclude = ["/migrations/"]
 
 [[tool.mypy.overrides]]
-module = ["environ.*", "pythonjsonlogger.*"]
+module = ["environ.*", "pythonjsonlogger.*", "allauth.*"]
 ignore_missing_imports = true
 
 # Tests are still type-checked, but don't need annotations everywhere.
@@ -94,8 +95,15 @@ root_packages = ["kayaka", "config"]
 [[tool.importlinter.contracts]]
 name = "core is the lowest layer"
 type = "layers"
+# High -> low. A higher layer may import lower ones, never the reverse.
+#   tenancy   : Tenant + Membership models, tenant context/RLS, membership-aware access, APIs
+#   accounts  : global User identity + platform role assignments
+#   authorization : pure RBAC (permission codes, role enums, role->permission maps); no models
+#   core      : request plumbing, error envelope, health
 layers = [
+    "kayaka.tenancy",
     "kayaka.accounts",
+    "kayaka.authorization",
     "kayaka.core",
 ]
 

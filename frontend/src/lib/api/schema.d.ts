@@ -4,6 +4,66 @@
  */
 
 export interface paths {
+    "/api/v1/auth/csrf": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Obtain a CSRF cookie
+         * @description Sets the CSRF cookie so the SPA can send `X-CSRFToken` on unsafe requests (login, switch).
+         */
+        get: operations["auth_csrf"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/me": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get the authenticated identity
+         * @description Current identity: user, platform roles/permissions, memberships, and active tenant.
+         */
+        get: operations["identity_me"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/platform/overview": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Platform overview (platform roles only)
+         * @description Platform-only overview. Requires a platform permission; tenant members are denied (403).
+         */
+        get: operations["platform_overview"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/public/ping": {
         parameters: {
             query?: never;
@@ -24,10 +84,87 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/tenants": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List accessible tenants
+         * @description Tenants the user may see: their memberships, plus all tenants if a platform viewer.
+         */
+        get: operations["tenants_list"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/tenants/{tenant_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get a tenant
+         * @description Single tenant. Hidden with 404 unless the user is a member or a platform viewer.
+         */
+        get: operations["tenants_detail"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /**
+         * Update a tenant
+         * @description Single tenant. Hidden with 404 unless the user is a member or a platform viewer.
+         */
+        patch: operations["tenants_update"];
+        trace?: never;
+    };
+    "/api/v1/tenants/switch": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Switch the active tenant
+         * @description Set the session's active tenant, validated against membership (never trusts the id).
+         */
+        post: operations["tenants_switch"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        ActiveTenant: {
+            /** Format: uuid */
+            activeTenantId: string | null;
+        };
+        ActiveTenantResponse: {
+            data: components["schemas"]["ActiveTenant"];
+        };
+        Csrf: {
+            detail: string;
+        };
+        CsrfResponse: {
+            data: components["schemas"]["Csrf"];
+        };
         ErrorBody: {
             /** @description Stable machine-readable code, e.g. VALIDATION_ERROR */
             code: string;
@@ -44,6 +181,31 @@ export interface components {
         ErrorResponse: {
             error: components["schemas"]["ErrorBody"];
         };
+        Me: {
+            /** Format: uuid */
+            id: string;
+            /** Format: email */
+            email: string;
+            fullName: string;
+            isAuthenticated: boolean;
+            platformRoles: string[];
+            platformPermissions: string[];
+            /** Format: uuid */
+            activeTenantId: string | null;
+            memberships: components["schemas"]["Membership"][];
+        };
+        MeResponse: {
+            data: components["schemas"]["Me"];
+        };
+        Membership: {
+            tenant: components["schemas"]["Tenant"];
+            role: string;
+            status: string;
+            permissions: string[];
+        };
+        PatchedTenantUpdateRequest: {
+            name?: string;
+        };
         Ping: {
             service: string;
             version: string;
@@ -54,6 +216,39 @@ export interface components {
         PingResponse: {
             data: components["schemas"]["Ping"];
         };
+        PlatformOverview: {
+            tenants: number;
+            activeTenants: number;
+        };
+        PlatformOverviewResponse: {
+            data: components["schemas"]["PlatformOverview"];
+        };
+        Tenant: {
+            /** Format: uuid */
+            id: string;
+            name: string;
+            slug: string;
+            status: string;
+        };
+        TenantDetailResponse: {
+            data: components["schemas"]["TenantSummary"];
+        };
+        TenantListResponse: {
+            data: components["schemas"]["TenantSummary"][];
+        };
+        TenantSummary: {
+            /** Format: uuid */
+            id: string;
+            name: string;
+            slug: string;
+            status: string;
+            role: string | null;
+            permissions: string[];
+        };
+        TenantSwitchRequestRequest: {
+            /** Format: uuid */
+            tenantId: string;
+        };
     };
     responses: never;
     parameters: never;
@@ -63,6 +258,79 @@ export interface components {
 }
 export type $defs = Record<string, never>;
 export interface operations {
+    auth_csrf: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CsrfResponse"];
+                };
+            };
+        };
+    };
+    identity_me: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MeResponse"];
+                };
+            };
+            "4XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    platform_overview: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PlatformOverviewResponse"];
+                };
+            };
+            "4XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
     public_ping: {
         parameters: {
             query?: never;
@@ -78,6 +346,126 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["PingResponse"];
+                };
+            };
+            "4XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    tenants_list: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TenantListResponse"];
+                };
+            };
+            "4XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    tenants_detail: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                tenant_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TenantDetailResponse"];
+                };
+            };
+            "4XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    tenants_update: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                tenant_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["PatchedTenantUpdateRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TenantDetailResponse"];
+                };
+            };
+            "4XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    tenants_switch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["TenantSwitchRequestRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ActiveTenantResponse"];
                 };
             };
             "4XX": {

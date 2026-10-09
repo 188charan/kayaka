@@ -1,27 +1,38 @@
 # Demo accounts & personas (local development)
 
 > **These are canonical _local development personas_, not production credentials.**
-> Phase 1 has **no authentication, no roles, and no tenancy** — none of these accounts can
-> actually sign in yet. They exist to keep naming, roles and intended permissions consistent as
-> we build identity, access and tenancy in **Phase 2**.
+> As of **Phase 2**, authentication, tenancy, memberships and RBAC are implemented — these
+> personas can sign in at `/login` once the demo data is seeded (below). They keep naming, roles
+> and permissions consistent across the codebase.
 >
-> - **No real passwords or secrets** live in this repo. Do not add any.
+> - **No real passwords or secrets** live in this repo. Seed with a password you supply via
+>   `KAYAKA_DEMO_PASSWORD`; it is never stored in source. Do not add any.
 > - All `@kayaka.local` / `@demo.kayaka.local` emails and the demo phone number are fictional.
-> - Frontend visibility is **not** authorization. When RBAC lands in Phase 2, the **backend**
->   permissions are authoritative; the Phase 1 UI only establishes the visual surfaces.
+> - Frontend visibility is **not** authorization. The **backend** permissions are authoritative
+>   (permission-code RBAC + PostgreSQL RLS); the UI only reflects them.
 
-## Current status (Phase 1)
+## Current status (Phase 2)
 
-| Capability                 | Status in Phase 1 | Arrives in |
-| -------------------------- | ----------------- | ---------- |
-| Authentication (login)     | ❌ Not implemented | Phase 2    |
-| Tenancy (tenant model)     | ❌ Not implemented | Phase 2    |
-| Memberships                | ❌ Not implemented | Phase 2    |
-| Roles & permissions (RBAC) | ❌ Not implemented | Phase 2    |
+| Capability                 | Status            | Implemented in |
+| -------------------------- | ----------------- | -------------- |
+| Authentication (login)     | ✅ Implemented (allauth headless, session) | Phase 2 |
+| Tenancy (tenant model)     | ✅ Implemented     | Phase 2        |
+| Memberships                | ✅ Implemented     | Phase 2        |
+| Roles & permissions (RBAC) | ✅ Implemented (permission codes) | Phase 2 |
+| Row-level security (RLS)   | ✅ Implemented     | Phase 2        |
 | Customer accounts          | ❌ Not needed (MVP uses none) | — |
 
-Today there is exactly one user table (`accounts.User`) and no tenant tables. The surfaces at
-`/`, `/store/demo-store`, `/dashboard` and `/admin` are **visual shells with demo data only**.
+See [identity-and-tenancy.md](identity-and-tenancy.md) for the full model. Business features
+(catalog, inquiries, customers, analytics) are still later phases.
+
+### Seeding and signing in
+
+```bash
+docker compose up --build --wait
+KAYAKA_DEMO_PASSWORD='change-me-locally' \
+  docker compose run --rm -T backend python manage.py seed_demo_data
+# then: cd frontend && npm run dev  → sign in at http://localhost:3000/login
+```
 
 ---
 
@@ -32,7 +43,7 @@ Today there is exactly one user table (`accounts.User`) and no tenant tables. Th
 - **Email:** `admin@kayaka.local`
 - **Role:** `PLATFORM_ADMIN`
 - **Scope:** Entire Kayaka platform
-- **Authentication:** None yet (Phase 2)
+- **Authentication:** Yes — sign in at /login (Phase 2)
 - **Intended permissions:**
   - View tenants
   - Create / invite tenants
@@ -54,7 +65,7 @@ All four below belong to the same demo tenant, **Anjali Jewellery & Décor**.
 - **Email:** `owner@demo.kayaka.local`
 - **Role:** `OWNER`
 - **Tenant:** Anjali Jewellery & Décor
-- **Authentication:** None yet (Phase 2)
+- **Authentication:** Yes — sign in at /login (Phase 2)
 - **Intended permissions:**
   - Manage store profile
   - Manage products
@@ -71,7 +82,7 @@ All four below belong to the same demo tenant, **Anjali Jewellery & Décor**.
 - **Email:** `manager@demo.kayaka.local`
 - **Role:** `MANAGER`
 - **Tenant:** Anjali Jewellery & Décor
-- **Authentication:** None yet (Phase 2)
+- **Authentication:** Yes — sign in at /login (Phase 2)
 - **Intended permissions:** products, categories, inquiries, customers, insights
 - **Must NOT have:** platform administration, tenant ownership transfer, destructive platform
   operations
@@ -81,7 +92,7 @@ All four below belong to the same demo tenant, **Anjali Jewellery & Décor**.
 - **Email:** `staff@demo.kayaka.local`
 - **Role:** `STAFF`
 - **Tenant:** Anjali Jewellery & Décor
-- **Authentication:** None yet (Phase 2)
+- **Authentication:** Yes — sign in at /login (Phase 2)
 - **Intended permissions:** view/manage products, update stock, view/manage inquiries, view
   customers
 - **Must NOT have:** team management, tenant configuration, platform administration
@@ -91,7 +102,7 @@ All four below belong to the same demo tenant, **Anjali Jewellery & Décor**.
 - **Email:** `marketing@demo.kayaka.local`
 - **Role:** `MARKETING`
 - **Tenant:** Anjali Jewellery & Décor
-- **Authentication:** None yet (Phase 2)
+- **Authentication:** Yes — sign in at /login (Phase 2)
 - **Intended permissions:** storefront content, featured products, promotional content, insights,
   sharing
 - **Note:** This is a **future / MVP+** role. It is documented for consistency and **must not**
@@ -131,9 +142,9 @@ an online checkout.
 
 ## Intended role model (implemented in Phase 2)
 
-> This hierarchy is **documentation only** in Phase 1. The roles below are **not** enforced yet.
-> Phase 2 implements the tenant model, memberships, and role/permission tables; the backend is
-> the single source of truth for authorization.
+> As of Phase 2 this hierarchy is **implemented and enforced**: the tenant model, memberships,
+> platform-role assignments and permission-code RBAC exist, and the backend is the single source
+> of truth for authorization. `ANALYST` is reserved and currently grants no permissions.
 
 ```
 PLATFORM

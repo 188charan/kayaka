@@ -1,5 +1,7 @@
 import type { Metadata } from "next";
+import { redirect } from "next/navigation";
 
+import { UserMenu } from "@/components/auth/user-menu";
 import { BrandMark } from "@/components/shared/brand-mark";
 import {
   DashboardIcon,
@@ -9,6 +11,8 @@ import {
   ShieldIcon,
   UsersIcon,
 } from "@/components/shared/icons";
+import { getServerMe } from "@/lib/auth/server";
+import { hasPlatformAccess } from "@/lib/auth/types";
 
 export const metadata: Metadata = {
   title: { default: "Admin", template: "%s · Admin · Kayaka" },
@@ -23,8 +27,18 @@ const NAV = [
   { label: "Usage", icon: GaugeIcon, active: false },
 ] as const;
 
-/** Platform admin shell: information-dense, desktop-first. Access control arrives in Phase 2. */
-export default function AdminLayout({ children }: { children: React.ReactNode }) {
+/**
+ * Platform admin shell: information-dense, desktop-first. Server-side guard requires a platform
+ * role (tenant-only users are redirected to their dashboard); the backend's platform endpoints
+ * enforce the same independently. This guard is UX, not the security boundary.
+ */
+export default async function AdminLayout({ children }: { children: React.ReactNode }) {
+  const me = await getServerMe();
+  if (!me) redirect("/login?next=/admin");
+  if (!hasPlatformAccess(me)) redirect("/dashboard");
+
+  const roleLabel = me.platformRoles.join(", ");
+
   return (
     <div className="min-h-dvh bg-muted/40">
       <header className="sticky top-0 z-10 border-b bg-background">
@@ -34,9 +48,12 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
             <ShieldIcon className="size-3.5" />
             Platform console
           </span>
-          <span className="ml-auto text-xs text-muted-foreground">
-            Signed in as Charan · PLATFORM_ADMIN (demo)
-          </span>
+          <div className="ml-auto flex items-center gap-3">
+            <span className="hidden text-xs text-muted-foreground sm:inline">
+              {me.email} · {roleLabel}
+            </span>
+            <UserMenu name={me.fullName} email={me.email} subtitle={roleLabel} />
+          </div>
         </div>
       </header>
 

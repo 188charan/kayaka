@@ -1,6 +1,9 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { redirect } from "next/navigation";
 
+import { TenantSwitcher } from "@/components/auth/tenant-switcher";
+import { UserMenu } from "@/components/auth/user-menu";
 import { BrandMark } from "@/components/shared/brand-mark";
 import {
   BellIcon,
@@ -13,6 +16,8 @@ import {
   UsersIcon,
 } from "@/components/shared/icons";
 import { Button } from "@/components/ui/button";
+import { getServerMe } from "@/lib/auth/server";
+import { activeMembership } from "@/lib/auth/types";
 
 export const metadata: Metadata = {
   title: { default: "Dashboard", template: "%s · Dashboard · Kayaka" },
@@ -26,7 +31,7 @@ type NavItem = {
   phase?: string;
 };
 
-// Plain, entrepreneur-friendly vocabulary (blueprint §J.7). Only Home exists in Phase 1.
+// Plain, entrepreneur-friendly vocabulary (blueprint §J.7). Only Home exists in Phase 2.
 const NAV: NavItem[] = [
   { label: "Home", href: "/dashboard", icon: HomeIcon },
   { label: "Products", href: null, icon: BoxIcon, phase: "Phase 3" },
@@ -37,7 +42,6 @@ const NAV: NavItem[] = [
   { label: "Insights", href: null, icon: ChartIcon, phase: "Phase 8" },
 ];
 
-// Mobile bottom bar is capped at five destinations for thumb reach.
 const MOBILE_NAV = NAV.filter((item) =>
   ["Home", "Products", "Inquiries", "Insights", "My Store"].includes(item.label),
 );
@@ -72,11 +76,19 @@ function SidebarItem({ item }: { item: NavItem }) {
 }
 
 /**
- * Tenant dashboard shell: sidebar on desktop, bottom tab bar on mobile (most entrepreneurs
- * manage their store from a phone). Authentication and tenant switching arrive in Phase 2;
- * the store identity and profile shown here are demo-only.
+ * Tenant dashboard shell. Authentication is enforced on the server here (unauthenticated users
+ * are redirected to /login) AND independently by every backend API — this guard is UX, not the
+ * security boundary. Sidebar on desktop, bottom tab bar on mobile.
  */
-export default function DashboardLayout({ children }: { children: React.ReactNode }) {
+export default async function DashboardLayout({ children }: { children: React.ReactNode }) {
+  const me = await getServerMe();
+  if (!me) redirect("/login?next=/dashboard");
+
+  const member = activeMembership(me);
+  const tenantName = member?.tenant.name ?? "No tenant yet";
+  const tenantSlug = member ? `${member.tenant.slug}.kayaka.store` : "—";
+  const roleLabel = member ? member.role.charAt(0) + member.role.slice(1).toLowerCase() : "Member";
+
   return (
     <div className="flex min-h-dvh bg-muted/30">
       <aside
@@ -93,11 +105,11 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             aria-hidden="true"
             className="grid size-9 place-items-center rounded-lg bg-primary text-sm font-bold text-primary-foreground"
           >
-            A
+            {tenantName.charAt(0)}
           </span>
           <div className="min-w-0">
-            <p className="truncate text-sm font-medium">Anjali Jewellery</p>
-            <p className="truncate text-xs text-muted-foreground">anjali.kayaka.store</p>
+            <p className="truncate text-sm font-medium">{tenantName}</p>
+            <p className="truncate text-xs text-muted-foreground">{tenantSlug}</p>
           </div>
         </div>
 
@@ -108,15 +120,10 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         </nav>
 
         <div className="flex items-center gap-3 border-t px-5 py-4">
-          <span
-            aria-hidden="true"
-            className="grid size-9 place-items-center rounded-full bg-accent text-sm font-semibold text-accent-foreground"
-          >
-            AN
-          </span>
+          <UserMenu name={me.fullName} email={me.email} subtitle={`${roleLabel} · ${tenantName}`} />
           <div className="min-w-0">
-            <p className="truncate text-sm font-medium">Anjali</p>
-            <p className="truncate text-xs text-muted-foreground">Owner</p>
+            <p className="truncate text-sm font-medium">{me.fullName || me.email}</p>
+            <p className="truncate text-xs text-muted-foreground">{roleLabel}</p>
           </div>
         </div>
       </aside>
@@ -126,20 +133,19 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           <div className="flex items-center gap-2 md:hidden">
             <BrandMark label="Kayaka" />
           </div>
-          <p className="hidden text-sm text-muted-foreground md:block">
-            Anjali Jewellery &amp; Décor
-          </p>
+          <div className="hidden md:block">
+            <TenantSwitcher memberships={me.memberships} activeTenantId={me.activeTenantId} />
+          </div>
           <div className="flex items-center gap-1">
             <Button variant="ghost" size="icon" aria-label="Notifications" className="relative">
               <BellIcon className="size-5" />
               <span className="absolute right-1.5 top-1.5 size-2 rounded-full bg-brand" />
             </Button>
-            <span
-              aria-hidden="true"
-              className="grid size-8 place-items-center rounded-full bg-accent text-xs font-semibold text-accent-foreground"
-            >
-              AN
-            </span>
+            <UserMenu
+              name={me.fullName}
+              email={me.email}
+              subtitle={`${roleLabel} · ${tenantName}`}
+            />
           </div>
         </header>
 

@@ -6,6 +6,105 @@
         "description": "Multi-tenant commerce platform API. See docs/development/api-conventions.md."
     },
     "paths": {
+        "/api/v1/auth/csrf": {
+            "get": {
+                "operationId": "auth_csrf",
+                "description": "Sets the CSRF cookie so the SPA can send `X-CSRFToken` on unsafe requests (login, switch).",
+                "summary": "Obtain a CSRF cookie",
+                "tags": [
+                    "auth"
+                ],
+                "security": [
+                    {}
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/CsrfResponse"
+                                }
+                            }
+                        },
+                        "description": ""
+                    }
+                }
+            }
+        },
+        "/api/v1/me": {
+            "get": {
+                "operationId": "identity_me",
+                "description": "Current identity: user, platform roles/permissions, memberships, and active tenant.",
+                "summary": "Get the authenticated identity",
+                "tags": [
+                    "identity"
+                ],
+                "security": [
+                    {
+                        "cookieAuth": []
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/MeResponse"
+                                }
+                            }
+                        },
+                        "description": ""
+                    },
+                    "4XX": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ErrorResponse"
+                                }
+                            }
+                        },
+                        "description": ""
+                    }
+                }
+            }
+        },
+        "/api/v1/platform/overview": {
+            "get": {
+                "operationId": "platform_overview",
+                "description": "Platform-only overview. Requires a platform permission; tenant members are denied (403).",
+                "summary": "Platform overview (platform roles only)",
+                "tags": [
+                    "platform"
+                ],
+                "security": [
+                    {
+                        "cookieAuth": []
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/PlatformOverviewResponse"
+                                }
+                            }
+                        },
+                        "description": ""
+                    },
+                    "4XX": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ErrorResponse"
+                                }
+                            }
+                        },
+                        "description": ""
+                    }
+                }
+            }
+        },
         "/api/v1/public/ping": {
             "get": {
                 "operationId": "public_ping",
@@ -40,10 +139,243 @@
                     }
                 }
             }
+        },
+        "/api/v1/tenants": {
+            "get": {
+                "operationId": "tenants_list",
+                "description": "Tenants the user may see: their memberships, plus all tenants if a platform viewer.",
+                "summary": "List accessible tenants",
+                "tags": [
+                    "tenancy"
+                ],
+                "security": [
+                    {
+                        "cookieAuth": []
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/TenantListResponse"
+                                }
+                            }
+                        },
+                        "description": ""
+                    },
+                    "4XX": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ErrorResponse"
+                                }
+                            }
+                        },
+                        "description": ""
+                    }
+                }
+            }
+        },
+        "/api/v1/tenants/{tenant_id}": {
+            "get": {
+                "operationId": "tenants_detail",
+                "description": "Single tenant. Hidden with 404 unless the user is a member or a platform viewer.",
+                "summary": "Get a tenant",
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "tenant_id",
+                        "schema": {
+                            "type": "string",
+                            "format": "uuid"
+                        },
+                        "required": true
+                    }
+                ],
+                "tags": [
+                    "tenancy"
+                ],
+                "security": [
+                    {
+                        "cookieAuth": []
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/TenantDetailResponse"
+                                }
+                            }
+                        },
+                        "description": ""
+                    },
+                    "4XX": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ErrorResponse"
+                                }
+                            }
+                        },
+                        "description": ""
+                    }
+                }
+            },
+            "patch": {
+                "operationId": "tenants_update",
+                "description": "Single tenant. Hidden with 404 unless the user is a member or a platform viewer.",
+                "summary": "Update a tenant",
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "tenant_id",
+                        "schema": {
+                            "type": "string",
+                            "format": "uuid"
+                        },
+                        "required": true
+                    }
+                ],
+                "tags": [
+                    "tenancy"
+                ],
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/PatchedTenantUpdateRequest"
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "cookieAuth": []
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/TenantDetailResponse"
+                                }
+                            }
+                        },
+                        "description": ""
+                    },
+                    "4XX": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ErrorResponse"
+                                }
+                            }
+                        },
+                        "description": ""
+                    }
+                }
+            }
+        },
+        "/api/v1/tenants/switch": {
+            "post": {
+                "operationId": "tenants_switch",
+                "description": "Set the session's active tenant, validated against membership (never trusts the id).",
+                "summary": "Switch the active tenant",
+                "tags": [
+                    "tenancy"
+                ],
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/TenantSwitchRequestRequest"
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "security": [
+                    {
+                        "cookieAuth": []
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ActiveTenantResponse"
+                                }
+                            }
+                        },
+                        "description": ""
+                    },
+                    "4XX": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ErrorResponse"
+                                }
+                            }
+                        },
+                        "description": ""
+                    }
+                }
+            }
         }
     },
     "components": {
         "schemas": {
+            "ActiveTenant": {
+                "type": "object",
+                "properties": {
+                    "activeTenantId": {
+                        "type": "string",
+                        "format": "uuid",
+                        "nullable": true
+                    }
+                },
+                "required": [
+                    "activeTenantId"
+                ]
+            },
+            "ActiveTenantResponse": {
+                "type": "object",
+                "properties": {
+                    "data": {
+                        "$ref": "#/components/schemas/ActiveTenant"
+                    }
+                },
+                "required": [
+                    "data"
+                ]
+            },
+            "Csrf": {
+                "type": "object",
+                "properties": {
+                    "detail": {
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "detail"
+                ]
+            },
+            "CsrfResponse": {
+                "type": "object",
+                "properties": {
+                    "data": {
+                        "$ref": "#/components/schemas/Csrf"
+                    }
+                },
+                "required": [
+                    "data"
+                ]
+            },
             "ErrorBody": {
                 "type": "object",
                 "properties": {
@@ -103,6 +435,105 @@
                     "error"
                 ]
             },
+            "Me": {
+                "type": "object",
+                "properties": {
+                    "id": {
+                        "type": "string",
+                        "format": "uuid"
+                    },
+                    "email": {
+                        "type": "string",
+                        "format": "email"
+                    },
+                    "fullName": {
+                        "type": "string"
+                    },
+                    "isAuthenticated": {
+                        "type": "boolean"
+                    },
+                    "platformRoles": {
+                        "type": "array",
+                        "items": {
+                            "type": "string"
+                        }
+                    },
+                    "platformPermissions": {
+                        "type": "array",
+                        "items": {
+                            "type": "string"
+                        }
+                    },
+                    "activeTenantId": {
+                        "type": "string",
+                        "format": "uuid",
+                        "nullable": true
+                    },
+                    "memberships": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/Membership"
+                        }
+                    }
+                },
+                "required": [
+                    "activeTenantId",
+                    "email",
+                    "fullName",
+                    "id",
+                    "isAuthenticated",
+                    "memberships",
+                    "platformPermissions",
+                    "platformRoles"
+                ]
+            },
+            "MeResponse": {
+                "type": "object",
+                "properties": {
+                    "data": {
+                        "$ref": "#/components/schemas/Me"
+                    }
+                },
+                "required": [
+                    "data"
+                ]
+            },
+            "Membership": {
+                "type": "object",
+                "properties": {
+                    "tenant": {
+                        "$ref": "#/components/schemas/Tenant"
+                    },
+                    "role": {
+                        "type": "string"
+                    },
+                    "status": {
+                        "type": "string"
+                    },
+                    "permissions": {
+                        "type": "array",
+                        "items": {
+                            "type": "string"
+                        }
+                    }
+                },
+                "required": [
+                    "permissions",
+                    "role",
+                    "status",
+                    "tenant"
+                ]
+            },
+            "PatchedTenantUpdateRequest": {
+                "type": "object",
+                "properties": {
+                    "name": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 200
+                    }
+                }
+            },
             "Ping": {
                 "type": "object",
                 "properties": {
@@ -137,6 +568,136 @@
                 "required": [
                     "data"
                 ]
+            },
+            "PlatformOverview": {
+                "type": "object",
+                "properties": {
+                    "tenants": {
+                        "type": "integer"
+                    },
+                    "activeTenants": {
+                        "type": "integer"
+                    }
+                },
+                "required": [
+                    "activeTenants",
+                    "tenants"
+                ]
+            },
+            "PlatformOverviewResponse": {
+                "type": "object",
+                "properties": {
+                    "data": {
+                        "$ref": "#/components/schemas/PlatformOverview"
+                    }
+                },
+                "required": [
+                    "data"
+                ]
+            },
+            "Tenant": {
+                "type": "object",
+                "properties": {
+                    "id": {
+                        "type": "string",
+                        "format": "uuid"
+                    },
+                    "name": {
+                        "type": "string"
+                    },
+                    "slug": {
+                        "type": "string"
+                    },
+                    "status": {
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "id",
+                    "name",
+                    "slug",
+                    "status"
+                ]
+            },
+            "TenantDetailResponse": {
+                "type": "object",
+                "properties": {
+                    "data": {
+                        "$ref": "#/components/schemas/TenantSummary"
+                    }
+                },
+                "required": [
+                    "data"
+                ]
+            },
+            "TenantListResponse": {
+                "type": "object",
+                "properties": {
+                    "data": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/TenantSummary"
+                        }
+                    }
+                },
+                "required": [
+                    "data"
+                ]
+            },
+            "TenantSummary": {
+                "type": "object",
+                "properties": {
+                    "id": {
+                        "type": "string",
+                        "format": "uuid"
+                    },
+                    "name": {
+                        "type": "string"
+                    },
+                    "slug": {
+                        "type": "string"
+                    },
+                    "status": {
+                        "type": "string"
+                    },
+                    "role": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "permissions": {
+                        "type": "array",
+                        "items": {
+                            "type": "string"
+                        }
+                    }
+                },
+                "required": [
+                    "id",
+                    "name",
+                    "permissions",
+                    "role",
+                    "slug",
+                    "status"
+                ]
+            },
+            "TenantSwitchRequestRequest": {
+                "type": "object",
+                "properties": {
+                    "tenantId": {
+                        "type": "string",
+                        "format": "uuid"
+                    }
+                },
+                "required": [
+                    "tenantId"
+                ]
+            }
+        },
+        "securitySchemes": {
+            "cookieAuth": {
+                "type": "apiKey",
+                "in": "cookie",
+                "name": "kayaka_session"
             }
         }
     }

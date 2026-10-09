@@ -39,6 +39,8 @@ services:
       DJANGO_ADMIN_ENABLED: "true"
       PROXY_SHARED_SECRET: ${PROXY_SHARED_SECRET:-dev-only-proxy-secret-0123456789abcdef}
       LOG_FORMAT: ${LOG_FORMAT:-console}
+      # Only used by `manage.py seed_demo_data` (local demo personas). Empty by default.
+      KAYAKA_DEMO_PASSWORD: ${KAYAKA_DEMO_PASSWORD:-}
     ports:
       - "127.0.0.1:${BACKEND_PORT:-8000}:8000"
     volumes:

@@ -29,12 +29,19 @@ INSTALLED_APPS = [
     "django.contrib.sessions",
     "django.contrib.messages",
     "django.contrib.staticfiles",
+    "django.contrib.sites",  # required by allauth
     "rest_framework",
     "drf_spectacular",
+    "allauth",
+    "allauth.account",
+    "allauth.headless",
     "kayaka.accounts",
+    "kayaka.tenancy",
 ]
 if ADMIN_ENABLED:
     INSTALLED_APPS.insert(0, "django.contrib.admin")
+
+SITE_ID = 1
 
 MIDDLEWARE = [
     "kayaka.core.middleware.RequestContextMiddleware",
@@ -47,6 +54,7 @@ MIDDLEWARE = [
     "django.contrib.auth.middleware.AuthenticationMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
+    "allauth.account.middleware.AccountMiddleware",  # required by django-allauth
 ]
 
 ROOT_URLCONF = "config.urls"
@@ -88,6 +96,31 @@ DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
 # ------------------------------------------------------------------ auth
 AUTH_USER_MODEL = "accounts.User"
+
+AUTHENTICATION_BACKENDS = [
+    # allauth first so email-based login works; ModelBackend kept for Django admin.
+    "allauth.account.auth_backends.AuthenticationBackend",
+    "django.contrib.auth.backends.ModelBackend",
+]
+
+# django-allauth, headless-only (no server-rendered allauth templates; the Next.js app drives
+# the UI and talks to /_allauth/browser/v1/* through the same-origin proxy — ADR 0011).
+HEADLESS_ONLY = True
+ACCOUNT_LOGIN_METHODS = {"email"}
+ACCOUNT_SIGNUP_FIELDS = ["email*", "password1*", "password2*"]
+ACCOUNT_UNIQUE_EMAIL = True
+# Our User model has no username field — identity is the email (ADR 0010).
+ACCOUNT_USER_MODEL_USERNAME_FIELD = None
+ACCOUNT_USER_MODEL_EMAIL_FIELD = "email"
+# Phase 2 has no email-sending flows wired; demo users log in directly. Verification, invites
+# and password reset are added in a later phase.
+ACCOUNT_EMAIL_VERIFICATION = "none"
+ACCOUNT_RATE_LIMITS = {"login_failed": "5/5m"}
+# Headless config points allauth at the frontend origin for any email links it builds later.
+HEADLESS_FRONTEND_URLS = {
+    "account_confirm_email": "/auth/verify-email/{key}",
+    "account_reset_password_from_key": "/auth/reset-password/{key}",
+}
 
 PASSWORD_HASHERS = [
     "django.contrib.auth.hashers.Argon2PasswordHasher",

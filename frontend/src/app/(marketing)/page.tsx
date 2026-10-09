@@ -73,14 +73,14 @@ export default function HomePage() {
           </h1>
           <nav aria-label="Surfaces" className="flex items-center gap-1 sm:gap-2">
             <Button asChild variant="ghost" size="sm" className="hidden sm:inline-flex">
-              <Link href="/dashboard">Dashboard</Link>
+              <Link href="/store/demo-store">Demo store</Link>
             </Button>
-            <Button asChild variant="ghost" size="sm" className="hidden sm:inline-flex">
-              <Link href="/admin">Admin</Link>
+            <Button asChild variant="ghost" size="sm">
+              <Link href="/login">Sign in</Link>
             </Button>
             <Button asChild size="sm">
-              <Link href={`/store/${DEMO_STORE.slug}`}>
-                View demo store
+              <Link href="/dashboard">
+                Open dashboard
                 <ArrowRightIcon className="size-4" />
               </Link>
             </Button>

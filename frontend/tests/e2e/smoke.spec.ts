@@ -1,32 +1,23 @@
-import { expect, test } from "@playwright/test";
+import { expect, type Page, test } from "@playwright/test";
 
-test.describe("walking skeleton", () => {
+// Must match the password used to seed demo data in CI (see .github/workflows/ci.yml) and locally.
+const DEMO_PASSWORD = process.env.KAYAKA_DEMO_PASSWORD ?? "e2e-demo-password-123456";
+const OWNER_EMAIL = "owner@demo.kayaka.local";
+const ADMIN_EMAIL = "admin@kayaka.local";
+
+async function login(page: Page, email: string): Promise<void> {
+  await page.goto("/login");
+  await page.getByLabel("Email").fill(email);
+  await page.getByLabel("Password").fill(DEMO_PASSWORD);
+  await page.getByRole("button", { name: "Sign in" }).click();
+  await page.waitForURL("**/dashboard");
+}
+
+test.describe("public surfaces", () => {
   test("home page renders and reaches the API from the server", async ({ page }) => {
     await page.goto("/");
     await expect(page.getByRole("heading", { level: 1, name: "Kayaka" })).toBeVisible();
     await expect(page.getByTestId("api-status-server")).toHaveAttribute("data-state", "ok");
-  });
-
-  test("dashboard reaches the API from the browser through the proxy", async ({ page }) => {
-    const ping = page.waitForResponse("**/api/v1/public/ping");
-    await page.goto("/dashboard");
-    const response = await ping;
-    expect(response.status()).toBe(200);
-    expect(response.headers()["x-request-id"]).toBeTruthy();
-    await expect(page.getByTestId("api-status-proxy")).toHaveAttribute("data-state", "ok");
-  });
-
-  test("dashboard navigation adapts to the viewport", async ({ page, isMobile }) => {
-    await page.goto("/dashboard");
-    const sidebar = page.getByTestId("dashboard-sidebar");
-    const bottomNav = page.getByTestId("dashboard-bottom-nav");
-    if (isMobile) {
-      await expect(bottomNav).toBeVisible();
-      await expect(sidebar).toBeHidden();
-    } else {
-      await expect(sidebar).toBeVisible();
-      await expect(bottomNav).toBeHidden();
-    }
   });
 
   test("storefront shell renders for a valid store slug", async ({ page }) => {
@@ -46,11 +37,64 @@ test.describe("walking skeleton", () => {
     expect(response?.status()).toBe(404);
     await expect(page.getByRole("heading", { name: "Page not found" })).toBeVisible();
   });
+});
 
-  test("admin overview renders", async ({ page }) => {
+test.describe("authentication", () => {
+  test("unauthenticated dashboard redirects to login", async ({ page }) => {
+    await page.goto("/dashboard");
+    await expect(page).toHaveURL(/\/login/);
+  });
+
+  test("unauthenticated admin redirects to login", async ({ page }) => {
+    await page.goto("/admin");
+    await expect(page).toHaveURL(/\/login/);
+  });
+
+  test("owner can sign in and reach the dashboard, which pings the API via the proxy", async ({
+    page,
+  }) => {
+    const ping = page.waitForResponse("**/api/v1/public/ping");
+    await login(page, OWNER_EMAIL);
+    await expect(page.getByRole("heading", { level: 1, name: /good morning/i })).toBeVisible();
+    const response = await ping;
+    expect(response.status()).toBe(200);
+    await expect(page.getByTestId("api-status-proxy")).toHaveAttribute("data-state", "ok");
+  });
+
+  test("dashboard navigation adapts to the viewport (authenticated)", async ({
+    page,
+    isMobile,
+  }) => {
+    await login(page, OWNER_EMAIL);
+    const sidebar = page.getByTestId("dashboard-sidebar");
+    const bottomNav = page.getByTestId("dashboard-bottom-nav");
+    if (isMobile) {
+      await expect(bottomNav).toBeVisible();
+      await expect(sidebar).toBeHidden();
+    } else {
+      await expect(sidebar).toBeVisible();
+      await expect(bottomNav).toBeHidden();
+    }
+  });
+
+  test("platform admin can reach the admin overview", async ({ page }) => {
+    await login(page, ADMIN_EMAIL);
     await page.goto("/admin");
     await expect(page.getByRole("heading", { name: "Platform overview" })).toBeVisible();
     await expect(page.getByTestId("api-status-server")).toHaveAttribute("data-state", "ok");
+  });
+
+  test("tenant user is redirected away from the admin console", async ({ page }) => {
+    await login(page, OWNER_EMAIL);
+    await page.goto("/admin");
+    await expect(page).toHaveURL(/\/dashboard/);
+  });
+
+  test("signing out returns to the login page", async ({ page }) => {
+    await login(page, OWNER_EMAIL);
+    await page.getByRole("button", { name: "Account menu" }).first().click();
+    await page.getByRole("menuitem", { name: "Sign out" }).click();
+    await page.waitForURL("**/login");
   });
 });
 
@@ -71,5 +115,12 @@ test.describe("API proxy", () => {
     const body = await response.json();
     expect(body.error.code).toBe("NOT_FOUND");
     expect(body.error.requestId).toBe(response.headers()["x-request-id"]);
+  });
+
+  test("identity endpoint requires authentication", async ({ request }) => {
+    const response = await request.get("/api/v1/me");
+    expect(response.status()).toBe(401);
+    const body = await response.json();
+    expect(body.error.code).toBe("NOT_AUTHENTICATED");
   });
 });

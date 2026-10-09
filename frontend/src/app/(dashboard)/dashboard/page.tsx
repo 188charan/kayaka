@@ -6,11 +6,19 @@ import { MetricCard } from "@/components/shared/metric-card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { getServerMe } from "@/lib/auth/server";
 import { DASHBOARD_ACTIVITY, DASHBOARD_METRICS, DASHBOARD_SETUP } from "@/lib/demo-data";
 
 export const metadata: Metadata = { title: "Home" };
 
-export default function DashboardHomePage() {
+function firstName(fullName: string, email: string): string {
+  const name = fullName.trim().split(/\s+/)[0];
+  return name || email.split("@")[0] || "there";
+}
+
+export default async function DashboardHomePage() {
+  const me = await getServerMe();
+  const greetingName = me ? firstName(me.fullName, me.email) : "there";
   const done = DASHBOARD_SETUP.filter((step) => step.done).length;
   const setupPct = Math.round((done / DASHBOARD_SETUP.length) * 100);
 
@@ -18,8 +26,10 @@ export default function DashboardHomePage() {
     <div className="space-y-6">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="space-y-1">
-          <h1 className="text-2xl font-semibold tracking-tight">Good morning, Anjali</h1>
-          <p className="text-muted-foreground">Your store at a glance.</p>
+          <h1 className="text-2xl font-semibold tracking-tight">Good morning, {greetingName}</h1>
+          <p className="text-muted-foreground">
+            Your store at a glance. Metrics below are demo data for Phase 2.
+          </p>
         </div>
         <ApiStatusClient />
       </div>
@@ -101,7 +111,8 @@ export default function DashboardHomePage() {
       </div>
 
       <p className="text-xs text-muted-foreground">
-        Demo data only. Sign-in, your real catalog and live insights arrive in later phases.
+        You&apos;re signed in. Your real catalog and live insights arrive in later phases; the
+        metrics above are demo data.
       </p>
     </div>
   );

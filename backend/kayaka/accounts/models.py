@@ -8,6 +8,7 @@ from django.db.models.functions import Lower
 from django.utils import timezone
 
 from kayaka.accounts.managers import UserManager, normalize_email
+from kayaka.authorization.roles import PlatformRole
 
 
 class User(AbstractBaseUser, PermissionsMixin):
@@ -49,3 +50,30 @@ class User(AbstractBaseUser, PermissionsMixin):
     def save(self, *args: Any, **kwargs: Any) -> None:
         self.email = normalize_email(self.email)
         super().save(*args, **kwargs)
+
+
+class PlatformRoleAssignment(models.Model):
+    """A platform-scoped role granted to a global user (PLATFORM_ADMIN, SUPPORT, ...).
+
+    Platform roles are explicit and separate from tenant memberships and from Django's
+    `is_staff`/`is_superuser` flags. A user may hold more than one platform role; the effective
+    platform permissions are the union of their roles' permission codes.
+    """
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid7, editable=False)
+    user = models.ForeignKey(
+        "accounts.User",
+        on_delete=models.CASCADE,
+        related_name="platform_roles",
+    )
+    role = models.CharField(max_length=32, choices=PlatformRole.choices)
+    created_at = models.DateTimeField(default=timezone.now, editable=False)
+
+    class Meta:
+        db_table = "platform_role_assignments"
+        constraints: ClassVar = [
+            models.UniqueConstraint(fields=["user", "role"], name="platform_role_unique_per_user"),
+        ]
+
+    def __str__(self) -> str:
+        return f"{self.user_id}:{self.role}"

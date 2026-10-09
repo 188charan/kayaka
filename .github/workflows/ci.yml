@@ -116,6 +116,8 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - name: Start backend stack (db, mailpit, backend)
         run: docker compose up --build --detach --wait
+      - name: Seed demo data for auth smoke tests
+        run: docker compose run --rm -T -e KAYAKA_DEMO_PASSWORD=ci-demo-password-0123456789 backend python manage.py seed_demo_data
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version-file: frontend/.nvmrc
@@ -133,6 +135,7 @@ jobs:
         working-directory: frontend
         env:
           CI: "true"
+          KAYAKA_DEMO_PASSWORD: ci-demo-password-0123456789
         run: npm run test:e2e
       - name: Backend logs on failure
         if: failure()

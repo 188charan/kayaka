@@ -2,7 +2,15 @@
 
 from django.contrib import admin
 
-from kayaka.accounts.models import User
+from kayaka.accounts.models import PlatformRoleAssignment, User
+
+
+@admin.register(PlatformRoleAssignment)
+class PlatformRoleAssignmentAdmin(admin.ModelAdmin):  # type: ignore[type-arg]
+    list_display = ("user", "role", "created_at")
+    list_filter = ("role",)
+    search_fields = ("user__email",)
+    raw_id_fields = ("user",)
 
 
 @admin.register(User)

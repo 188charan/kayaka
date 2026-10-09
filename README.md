@@ -3,7 +3,8 @@
 A multi-tenant commerce platform for small entrepreneurs: each business gets its own
 persistent, searchable, customizable storefront, and customers send inquiries on WhatsApp.
 
-**Status:** Phase 1 (foundation / walking skeleton) complete. No business features yet.
+**Status:** Phase 2 (identity, access & tenancy) complete — authentication, tenants, memberships,
+permission-code RBAC and PostgreSQL row-level security. No business features yet.
 
 ## Quick start
 
@@ -38,7 +39,9 @@ compose.yaml local development stack
 - [Architecture overview](docs/architecture/overview.md) — what exists today
 - [Architecture decisions (ADRs)](docs/adr/README.md)
 - [API conventions](docs/development/api-conventions.md)
-- [Demo accounts & personas](docs/development/demo-accounts.md) — local dev personas and the
-  intended Phase 2 role model
+- [Identity, access & tenancy](docs/development/identity-and-tenancy.md) — auth, RBAC, tenant
+  context and RLS (Phase 2)
+- [Demo accounts & personas](docs/development/demo-accounts.md) — local dev personas, seeding
+  and login
 - [Testing](docs/development/testing.md) · [CI](docs/development/ci.md) ·
   [Staging deployment](docs/development/deployment-staging.md)

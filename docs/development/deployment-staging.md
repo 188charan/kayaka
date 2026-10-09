@@ -58,11 +58,45 @@ The Next.js proxy forwards requests with `Host` set to the **API** host (verifie
 original host is in `X-Forwarded-Host`). So `DJANGO_ALLOWED_HOSTS` only needs the Cloud Run host,
 and later the API custom domain. `USE_X_FORWARDED_HOST` stays off.
 
+## Database roles (Phase 2 — RLS)
+
+RLS is only a real boundary if the **runtime** database identity cannot bypass it. The design
+uses two credentials (ADR 0002, ADR 0010):
+
+| Identity | Used by | Privileges |
+|---|---|---|
+| **migrator** (owner) | the `kayaka-migrate-staging` Cloud Run **Job** | owns schema/tables/policies; runs DDL. On Neon this is the project's owner role. |
+| **`kayaka_app`** (runtime) | the `kayaka-api-staging` Cloud Run **service** | `LOGIN`, `NOSUPERUSER`, `NOBYPASSRLS`; only DML on tenant/app tables; owns nothing. Subject to every RLS policy. |
+
+Provision once (as the Neon owner), **before** the first migrate job:
+
+```sql
+-- Unprivileged runtime role. If it already exists, migration 0002_rls just (re)applies grants.
+CREATE ROLE kayaka_app LOGIN PASSWORD '<generate: openssl rand -base64 24>'
+    NOSUPERUSER NOINHERIT NOCREATEDB NOCREATEROLE NOBYPASSRLS;
+GRANT CONNECT ON DATABASE <db> TO kayaka_app;
+-- Table/sequence grants + ALTER DEFAULT PRIVILEGES are applied by migration 0002_rls,
+-- running as the migrator (owner) role.
+```
+
+Two `DATABASE_URL` secrets:
+
+- `kayaka-staging-database-url-migrate` → migrator role → used by the migrate **Job**.
+- `kayaka-staging-database-url` → `kayaka_app` role → used by the runtime **service**.
+
+The application always runs `SET LOCAL ROLE kayaka_app` at the start of a tenant request
+(`kayaka.tenancy.db`). When the runtime already connects as `kayaka_app` this is a harmless
+self-set; in local dev (single superuser connection) it drops privileges so RLS still applies.
+Either way the **effective** role for tenant queries is `kayaka_app`, which cannot bypass RLS.
+
+> Local dev and CI use a single superuser Postgres role for convenience, but every tenant query
+> still runs *as* `kayaka_app` via `SET LOCAL ROLE`, and the test suite asserts that the effective
+> role is not a superuser and does not have `BYPASSRLS`
+> (`kayaka/tenancy/tests/test_rls.py::test_runtime_effective_role_is_unprivileged`).
+
 ## Not in Phase 1
 
 - Production environment (same steps with `production` names, plus a required reviewer on the
   GitHub environment).
-- Separate DB roles for migrations vs runtime. These arrive with RLS in Phase 2, and the migrate
-  job will then use its own `DATABASE_URL` secret.
 - Scheduled jobs (rollups, cleanup, backups): Phase 8 / Phase 9.
 - Custom domains, R2, Resend, Sentry: when their phases need them.
