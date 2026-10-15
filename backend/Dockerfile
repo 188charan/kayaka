@@ -6,7 +6,7 @@
 
 ARG PYTHON_IMAGE=python:3.14.7-slim-trixie
 
-FROM ghcr.io/astral-sh/uv:0.12.21 AS uv
+FROM ghcr.io/astral-sh/uv:0.13.1 AS uv
 
 # ---------------------------------------------------------------- base
 FROM ${PYTHON_IMAGE} AS base
